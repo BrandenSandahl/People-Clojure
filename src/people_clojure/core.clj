@@ -1,9 +1,11 @@
 (ns people-clojure.core
-  (:require [clojure.string :as str] ;this brings in a new namespace
-            [clojure.walk :as walk]) ;brings in walk lib 
+  (:require [clojure.string :as str] ;this brings in a new lib
+            [clojure.walk :as walk] ;brings in walk lib 
+            [compojure.core :as c]
+            [ring.adapter.jetty :as j])
   (:gen-class))
 
-(defn -main []
+(defn read-people []
   (let [people (slurp "people.csv") ;slurp reads in a file
         people (str/split-lines people) ;calls split-lines from the clojure.string lib
         people (map (fn [line]
@@ -18,5 +20,14 @@
         people (filter (fn [line]
                          (= (:country line) "Brazil"))
                  people)]
-    (spit "filtered_people.edn" (pr-str people))   ;this is a file writer
+    ;(spit "filtered_people.edn" (pr-str people))   ;this is a file writer
     people))
+
+(c/defroutes app
+  (c/GET "/" request
+    "Hello, World!"))
+
+(defn -main []
+  (j/run-jetty app {:port 3000}))   ;params for the web server
+  
+  
