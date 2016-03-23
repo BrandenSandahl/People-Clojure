@@ -2,7 +2,9 @@
   (:require [clojure.string :as str] ;this brings in a new lib
             [clojure.walk :as walk] ;brings in walk lib 
             [compojure.core :as c]
-            [ring.adapter.jetty :as j])
+            [ring.adapter.jetty :as j]
+            [ring.middleware.params :as p]
+            [hiccup.core :as h])
   (:gen-class))
 
 (defn read-people []
@@ -16,18 +18,44 @@
         people (map (fn [line]
                       (apply hash-map (interleave header line)))
                     people)
-        people (walk/keywordize-keys people)
-        people (filter (fn [line]
-                         (= (:country line) "Brazil"))
-                 people)]
+        people (walk/keywordize-keys people)]
     ;(spit "filtered_people.edn" (pr-str people))   ;this is a file writer
     people))
 
-(c/defroutes app
+(defn countries-html [people]
+  (let [all-countries (map :country people)
+        unique-countries (set all-countries)
+        sorted-countries (sort unique-countries)]
+    [:div
+     (map (fn [country]
+           [:span
+            [:a {:href (str "/?country=" country)} country]
+            " "])
+      sorted-countries)]))
+
+
+(defn people-html [people]
+  [:ol
+   (map (fn [person]
+          [:li (str (:first_name person) " " (:last_name person))])
+     people)])
+                 
+
+(c/defroutes app    ;define routes here. The app part names the routes for the server to use
   (c/GET "/" request
-    "Hello, World!"))
+    (let [params (:params request)
+          country (get params "country")
+          country (or country "Brazil")
+          people (read-people)
+          filtered-people (filter (fn [person]
+                                    (= (:country person) country))
+                            people)]
+      (h/html [:html 
+               [:body 
+                (countries-html people)
+                (people-html filtered-people)]]))))
 
 (defn -main []
-  (j/run-jetty app {:port 3000}))   ;params for the web server
+  (j/run-jetty (p/wrap-params app) {:port 3000}))   ;params for the web server
   
   
